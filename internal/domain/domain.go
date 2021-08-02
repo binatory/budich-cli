@@ -1,8 +1,9 @@
 package domain
 
 type Connector interface {
-	Search(name string) []Song
-	GetStreamingUrl(id string) string
+	Init() error
+	Search(name string) ([]Song, error)
+	GetStreamingUrl(id string) (string, error)
 }
 
 type Song struct {
