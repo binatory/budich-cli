@@ -1,7 +1,7 @@
 package main
 
 import (
-	"io.github.binatory/nhac-cli/cmd"
+	"io.github.binatory/busich-cli/cmd"
 )
 
 func main() {

@@ -9,7 +9,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/rs/zerolog/pkgerrors"
 	"github.com/spf13/cobra"
-	"io.github.binatory/nhac-cli/internal/domain"
+	"io.github.binatory/busich-cli/internal/domain"
 )
 
 var app *domain.App

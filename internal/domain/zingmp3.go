@@ -20,7 +20,7 @@ import (
 
 var (
 	zVersion    = "1.2.10"
-	zPrivateKey = "882QcNXV4tUZbvAsjmFOHqNC1LpcBRKW"
+	zPrivateKey = []byte("882QcNXV4tUZbvAsjmFOHqNC1LpcBRKW")
 	zApiKey     = "kI44ARvPwaqL7v0KuDSM0rGORtdY1nnw"
 )
 
@@ -55,13 +55,16 @@ func makeUrl(path string, queries url.Values) url.URL {
 	p1Hex := hex.EncodeToString(p1.Sum(nil))
 
 	// Sign queries hash
-	p2 := hmac.New(sha512.New, []byte(zPrivateKey))
+	p2 := hmac.New(sha512.New, zPrivateKey)
 	p2.Write([]byte(path))
 	p2.Write([]byte(p1Hex))
 	sig := hex.EncodeToString(p2.Sum(nil))
 
 	// Add the signature into the queries
 	queries.Add("sig", sig)
+
+	// Append apiKey
+	queries.Set("apiKey", zApiKey)
 
 	return url.URL{
 		Scheme:   "https",
@@ -105,6 +108,20 @@ func (c *connectorZingMp3) api(u url.URL, respStruct interface{}) error {
 	return nil
 }
 
+type searchResp struct {
+	Err  int    `json:"err"`
+	Msg  string `json:"msg"`
+	Data struct {
+		Items []struct {
+			EncodeId     string `json:"encodeId"`
+			Title        string `json:"title"`
+			ArtistsNames string `json:"artistsNames"`
+		} `json:"items"`
+		Total int `json:"total"`
+	} `json:"data"`
+	Timestamp int64 `json:"timestamp"`
+}
+
 func (c *connectorZingMp3) Search(name string) ([]Song, error) {
 	// build the url containing query params and sig
 	q := make(url.Values)
@@ -114,35 +131,22 @@ func (c *connectorZingMp3) Search(name string) ([]Song, error) {
 	q.Set("type", "song")
 	q.Set("version", zVersion)
 	q.Set("q", name)
-	q.Set("apiKey", zApiKey)
 	u := makeUrl("/api/v2/search", q)
 
 	// send request then decode response
-	respStruct := struct {
-		Err  int    `json:"err"`
-		Msg  string `json:"msg"`
-		Data struct {
-			Items []struct {
-				EncodeId     string `json:"encodeId"`
-				Title        string `json:"title"`
-				ArtistsNames string `json:"artistsNames"`
-			} `json:"items"`
-			Total int `json:"total"`
-		} `json:"data"`
-		Timestamp int64 `json:"timestamp"`
-	}{}
-	if err := c.api(u, &respStruct); err != nil {
+	var resp searchResp
+	if err := c.api(u, &resp); err != nil {
 		return nil, errors.WithStack(err)
 	}
 
 	// validate response
-	if respStruct.Err != 0 || respStruct.Data.Items == nil {
-		return nil, errors.Errorf("got unexpected response for url %s. Response %+v", u.String(), respStruct)
+	if resp.Err != 0 || resp.Data.Items == nil {
+		return nil, errors.Errorf("got unexpected response for url %s. Response %+v", u.String(), resp)
 	}
 
 	// build result
-	res := make([]Song, len(respStruct.Data.Items))
-	for idx, item := range respStruct.Data.Items {
+	res := make([]Song, len(resp.Data.Items))
+	for idx, item := range resp.Data.Items {
 		res[idx] = Song{
 			Id:      item.EncodeId,
 			Name:    item.Title,
@@ -152,32 +156,33 @@ func (c *connectorZingMp3) Search(name string) ([]Song, error) {
 	return res, nil
 }
 
+type getStreamingResp struct {
+	Err       int               `json:"err"`
+	Msg       string            `json:"msg"`
+	Data      map[string]string `json:"data"`
+	Timestamp int64             `json:"timestamp"`
+}
+
 func (c *connectorZingMp3) GetStreamingUrl(id string) (string, error) {
 	// build the url containing query params and sig
 	q := make(url.Values)
 	q.Set("ctime", strconv.FormatInt(c.nowFn().Unix(), 10))
 	q.Set("id", id)
 	q.Set("version", zVersion)
-	q.Set("apiKey", zApiKey)
 	u := makeUrl("/api/v2/song/getStreaming", q)
 
 	// send request then decode response
-	respStruct := struct {
-		Err       int               `json:"err"`
-		Msg       string            `json:"msg"`
-		Data      map[string]string `json:"data"`
-		Timestamp int64             `json:"timestamp"`
-	}{}
-	if err := c.api(u, &respStruct); err != nil {
+	var resp getStreamingResp
+	if err := c.api(u, &resp); err != nil {
 		return "", errors.WithStack(err)
 	}
 
 	// validate response
-	if respStruct.Err != 0 || respStruct.Data == nil || respStruct.Data["128"] == "" {
-		return "", errors.Errorf("got unexpected response for url %s: %+v", u.String(), respStruct)
+	if resp.Err != 0 || resp.Data == nil || resp.Data["128"] == "" {
+		return "", errors.Errorf("got unexpected response for url %s: %+v", u.String(), resp)
 	}
 
-	return respStruct.Data["128"], nil
+	return resp.Data["128"], nil
 }
 
 func (c *connectorZingMp3) getCookie() error {
