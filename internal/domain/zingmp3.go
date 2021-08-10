@@ -34,6 +34,10 @@ func NewConnectorZingMp3(httpClient *http.Client) *connectorZingMp3 {
 	return &connectorZingMp3{httpClient: httpClient, nowFn: time.Now}
 }
 
+func (c *connectorZingMp3) Name() string {
+	return "zmp3"
+}
+
 func (c *connectorZingMp3) Init() error {
 	return errors.Wrap(c.getCookie(), "error initializing ConnectorZingMp3")
 }

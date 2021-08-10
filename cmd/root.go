@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"net/http"
 	"os"
 	"time"
 
@@ -13,7 +12,11 @@ import (
 	"io.github.binatory/busich-cli/internal/domain"
 )
 
-var app *domain.App
+var (
+	connectorFlag string
+
+	app *domain.App
+)
 
 var rootCmd = &cobra.Command{
 	Use:           "busich",
@@ -27,22 +30,22 @@ var rootCmd = &cobra.Command{
 		// }
 		// defer f.Close()
 
-		app = domain.NewApp(domain.NewConnectorZingMp3(http.DefaultClient))
+		app = domain.DefaultApp()
 		return app.Init()
 	},
 }
 
 var searchCmd = &cobra.Command{
-	Use:   "search",
+	Use:   "search <search_term>",
 	Short: "search for songs/playlists/artists by name",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return app.Search(args[0])
+		return app.Search(connectorFlag, args[0])
 	},
 }
 
 var playCmd = &cobra.Command{
-	Use:   "play",
+	Use:   "play <song_id>",
 	Short: "play a song by id",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -57,8 +60,8 @@ func init() {
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, NoColor: true, TimeFormat: time.RFC3339})
 	})
 
-	searchCmd.Flags().StringP("type", "t", "", "type (required)")
-	searchCmd.MarkFlagRequired("type")
+	searchCmd.Flags().StringVarP(&connectorFlag, "connector", "c", "", "connector name (required)")
+	searchCmd.MarkFlagRequired("connector")
 
 	rootCmd.AddCommand(searchCmd)
 	rootCmd.AddCommand(playCmd)
