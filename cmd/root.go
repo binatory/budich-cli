@@ -9,6 +9,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/rs/zerolog/pkgerrors"
 	"github.com/spf13/cobra"
+
 	"io.github.binatory/busich-cli/internal/domain"
 )
 
@@ -26,11 +27,7 @@ var rootCmd = &cobra.Command{
 		// }
 		// defer f.Close()
 
-		zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-		zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
-		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, NoColor: true, TimeFormat: time.RFC3339})
-
-		app = domain.NewApp(domain.NewConnectorZingMp3(http.DefaultClient), os.Stdout)
+		app = domain.NewApp(domain.NewConnectorZingMp3(http.DefaultClient))
 		return app.Init()
 	},
 }
@@ -54,6 +51,12 @@ var playCmd = &cobra.Command{
 }
 
 func init() {
+	cobra.OnInitialize(func() {
+		zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+		zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
+		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, NoColor: true, TimeFormat: time.RFC3339})
+	})
+
 	searchCmd.Flags().StringP("type", "t", "", "type (required)")
 	searchCmd.MarkFlagRequired("type")
 

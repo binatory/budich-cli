@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"text/tabwriter"
 	"time"
 
 	"github.com/faiface/beep"
@@ -15,11 +17,10 @@ import (
 
 type App struct {
 	connector Connector
-	writer    io.Writer
 }
 
-func NewApp(connector Connector, writer io.Writer) *App {
-	return &App{connector, writer}
+func NewApp(connector Connector) *App {
+	return &App{connector}
 }
 
 func (a *App) Init() error {
@@ -32,8 +33,13 @@ func (a *App) Search(name string) error {
 		return errors.Wrapf(err, "error searching name=%s", name)
 	}
 
+	tw := tabwriter.NewWriter(os.Stdout, 1, 1, 5, ' ', 0)
+	defer tw.Flush()
+
+	fmt.Fprint(tw, "Id\tBài hát\tCa sĩ\n")
+	fmt.Fprint(tw, "----------\t----------\t----------\n")
 	for _, s := range songs {
-		fmt.Fprintf(a.writer, "%s\t%s\t%s\n", s.Id, s.Name, s.Artists)
+		fmt.Fprintf(tw, "%s\t%s\t%s\n", s.Id, s.Name, s.Artists)
 	}
 
 	return nil
@@ -58,7 +64,7 @@ func (a *App) Play(id string) error {
 	defer streamer.Close()
 
 	sr := format.SampleRate * 2
-	speaker.Init(sr, sr.N(time.Second/10))
+	speaker.Init(sr, sr.N(time.Second))
 	resampled := beep.Resample(4, format.SampleRate, sr, streamer)
 
 	done := make(chan bool)
