@@ -1,9 +1,7 @@
 package domain
 
 import (
-	"bufio"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -15,6 +13,8 @@ import (
 	"github.com/faiface/beep/speaker"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+
+	"io.github.binatory/busich-cli/internal/domain/musicstream"
 )
 
 type App struct {
@@ -88,15 +88,15 @@ func (a *App) Play(id string) error {
 		return errors.Wrapf(err, "error playing song id=%s", id)
 	}
 
-	resp, err := http.DefaultClient.Get(streamingUrl)
+	ms, err := musicstream.New(streamingUrl, http.DefaultClient)
 	if err != nil {
-		return errors.Wrapf(err, "error requesting streamingUrl id=%s, url=%s", id, streamingUrl)
+		return errors.Wrapf(err, "error creating music stream id=%s", id)
 	}
-	defer resp.Body.Close()
+	defer ms.Close()
 
-	streamer, format, err := mp3.Decode(io.NopCloser(bufio.NewReaderSize(resp.Body, 1024*1024)))
+	streamer, format, err := mp3.Decode(ms)
 	if err != nil {
-		return errors.Wrapf(err, "error decoding song id=%s, url=%s", id, streamingUrl)
+		return errors.Wrapf(err, "error decoding song id=%s", id)
 	}
 	defer streamer.Close()
 
