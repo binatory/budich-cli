@@ -25,12 +25,12 @@ var (
 )
 
 type connectorZingMp3 struct {
-	httpClient *http.Client
+	httpClient httpClient
 	cookie     string
 	nowFn      func() time.Time
 }
 
-func NewConnectorZingMp3(httpClient *http.Client) *connectorZingMp3 {
+func NewConnectorZingMp3(httpClient httpClient) *connectorZingMp3 {
 	return &connectorZingMp3{httpClient: httpClient, nowFn: time.Now}
 }
 
@@ -42,7 +42,7 @@ func (c *connectorZingMp3) Init() error {
 	return errors.Wrap(c.getCookie(), "error initializing ConnectorZingMp3")
 }
 
-func makeUrl(path string, queries url.Values) url.URL {
+func makeSig(path string, queries url.Values) string {
 	// filter query params then concatenate for hashing
 	sb := strings.Builder{}
 	for _, key := range []string{"count", "ctime", "id", "page", "type", "version"} {
@@ -62,13 +62,17 @@ func makeUrl(path string, queries url.Values) url.URL {
 	p2 := hmac.New(sha512.New, zPrivateKey)
 	p2.Write([]byte(path))
 	p2.Write([]byte(p1Hex))
-	sig := hex.EncodeToString(p2.Sum(nil))
+	return hex.EncodeToString(p2.Sum(nil))
+}
 
+func makeUrl(path string, queries url.Values) url.URL {
 	// Add the signature into the queries
+	sig := makeSig(path, queries)
 	queries.Add("sig", sig)
 
-	// Append apiKey
+	// Append apiKey and version
 	queries.Set("apiKey", zApiKey)
+	queries.Set("version", zVersion)
 
 	return url.URL{
 		Scheme:   "https",
@@ -133,7 +137,6 @@ func (c *connectorZingMp3) Search(name string) ([]Song, error) {
 	q.Set("count", strconv.FormatInt(18, 10))
 	q.Set("page", strconv.FormatInt(1, 10))
 	q.Set("type", "song")
-	q.Set("version", zVersion)
 	q.Set("q", name)
 	u := makeUrl("/api/v2/search", q)
 
@@ -172,7 +175,6 @@ func (c *connectorZingMp3) GetStreamingUrl(id string) (string, error) {
 	q := make(url.Values)
 	q.Set("ctime", strconv.FormatInt(c.nowFn().Unix(), 10))
 	q.Set("id", id)
-	q.Set("version", zVersion)
 	u := makeUrl("/api/v2/song/getStreaming", q)
 
 	// send request then decode response
@@ -189,15 +191,29 @@ func (c *connectorZingMp3) GetStreamingUrl(id string) (string, error) {
 	return resp.Data["128"], nil
 }
 
+const (
+	zmp3Url  = "https://zingmp3.vn"
+	zmp3Rqid = "zmp3_rqid"
+)
+
 func (c *connectorZingMp3) getCookie() error {
-	resp, err := http.Get("https://zingmp3.vn")
+	req, err := http.NewRequest(http.MethodGet, zmp3Url, nil)
+	if err != nil {
+		return errors.Wrap(err, "error creating request")
+	}
+
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return errors.Wrap(err, "error getting cookie")
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		return errors.Errorf("got non-ok response status=%d", resp.StatusCode)
+	}
+
 	for _, cookie := range resp.Cookies() {
-		if cookie.Name == "zmp3_rqid" {
+		if cookie.Name == zmp3Rqid {
 			c.cookie = fmt.Sprintf("%s=%s", cookie.Name, cookie.Value)
 			return nil
 		}

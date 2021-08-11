@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -20,13 +21,13 @@ var (
 )
 
 type connectorNhacCuaTui struct {
-	httpClient *http.Client
+	httpClient httpClient
 	nowFn      func() time.Time
 	deviceId   string
 	token      string
 }
 
-func NewConnectorNhacCuaTui(httpClient *http.Client) *connectorNhacCuaTui {
+func NewConnectorNhacCuaTui(httpClient httpClient) *connectorNhacCuaTui {
 	return &connectorNhacCuaTui{httpClient: httpClient, nowFn: time.Now}
 }
 
@@ -42,6 +43,52 @@ func (c *connectorNhacCuaTui) Name() string {
 	return "nct"
 }
 
+func (c *connectorNhacCuaTui) api(method, path, contentType string, reqBody io.Reader, respDecoded interface{}) error {
+	// create request
+	u := url.URL{Scheme: "https", Host: "tvapi.nhaccuatui.com", Path: path}
+	req, err := http.NewRequest(method, u.String(), reqBody)
+	if err != nil {
+		return errors.Wrap(err, "error creating request")
+	}
+
+	// set headers
+	req.Header.Set("X-NCT-DESKTOP", "true")
+	if c.deviceId != "" {
+		req.Header.Set("X-NCT-DEVICEID", c.deviceId)
+	}
+	if c.token != "" {
+		req.Header.Set("X-NCT-TOKEN", c.token)
+	}
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
+	}
+
+	// execute request
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return errors.Wrap(err, "error sending auth request")
+	}
+	defer resp.Body.Close()
+
+	// read response body
+	respBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return errors.Wrap(err, "error reading response body")
+	}
+
+	// validate response status
+	if resp.StatusCode != http.StatusOK {
+		return errors.Errorf("got non-ok response statusCode=%d body=%s", resp.StatusCode, respBody)
+	}
+
+	// decode response
+	if err := json.Unmarshal(respBody, respDecoded); err != nil {
+		return errors.Wrapf(err, "error decoding response body: %s", respBody)
+	}
+
+	return nil
+}
+
 func (c *connectorNhacCuaTui) Init() error {
 	now := strconv.FormatInt(c.nowFn().UnixNano(), 10)
 	hash := md5.New()
@@ -49,42 +96,21 @@ func (c *connectorNhacCuaTui) Init() error {
 	_, _ = hash.Write([]byte(now))
 	digest := hex.EncodeToString(hash.Sum(nil))
 
-	u := url.URL{Scheme: "https", Host: "tvapi.nhaccuatui.com", Path: "/v1/commons/token"}
-
 	form := url.Values{}
 	form.Set("timestamp", now)
 	form.Set("md5", digest)
 	form.Set("deviceinfo", "{'DeviceName':'browser','DeviceID':'','OsName':'WebApp','OsVersion':'none','AppName':'NhacCuaTui','AppVersion':'2.0.0','UserName':'','LocationInfo':'','Adv':'0'}")
 
-	req, err := http.NewRequest(http.MethodPost, u.String(), strings.NewReader(form.Encode()))
-	if err != nil {
-		return errors.Wrap(err, "error creating auth request")
-	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("X-NCT-DESKTOP", "true")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return errors.Wrap(err, "error sending auth request")
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return errors.Wrap(err, "error reading response body")
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return errors.Errorf("got non-ok response statusCode=%d body=%s", resp.StatusCode, body)
-	}
-
 	var decoded authResp
-	if err := json.Unmarshal(body, &decoded); err != nil {
-		return errors.Wrapf(err, "error decoding response body: %s", body)
+	if err := c.api(http.MethodPost, "/v1/commons/token",
+		"application/x-www-form-urlencoded", strings.NewReader(form.Encode()),
+		&decoded,
+	); err != nil {
+		return errors.Wrap(err, "error authenticating with nct")
 	}
 
 	if decoded.Code != 0 || decoded.Data.DeviceId == "" || decoded.Data.JwtToken == "" {
-		return errors.Errorf("got invalid response %s", body)
+		return errors.Errorf("got invalid response %+v", decoded)
 	}
 
 	c.deviceId = decoded.Data.DeviceId
@@ -103,44 +129,22 @@ type nctSearchResp struct {
 }
 
 func (c *connectorNhacCuaTui) Search(name string) ([]Song, error) {
-	u := url.URL{Scheme: "https", Host: "tvapi.nhaccuatui.com", Path: "/v1/searchs/song"}
-
 	form := url.Values{}
 	form.Set("keyword", name)
 	form.Set("pageindex", "1")
 	form.Set("pagesize", "6")
 
-	req, err := http.NewRequest(http.MethodPost, u.String(), strings.NewReader(form.Encode()))
-	if err != nil {
-		return nil, errors.Wrap(err, "error creating search request")
-	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("X-NCT-DESKTOP", "true")
-	req.Header.Set("X-NCT-DEVICEID", c.deviceId)
-	req.Header.Set("X-NCT-TOKEN", c.token)
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, errors.Wrap(err, "error sending search request")
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, errors.Wrap(err, "error reading response body")
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, errors.Errorf("got non-ok response statusCode=%d body=%s", resp.StatusCode, body)
-	}
-
 	var decoded nctSearchResp
-	if err := json.Unmarshal(body, &decoded); err != nil {
-		return nil, errors.Wrapf(err, "error decoding response body: %s", body)
+	if err := c.api(
+		http.MethodPost, "/v1/searchs/song",
+		"application/x-www-form-urlencoded", strings.NewReader(form.Encode()),
+		&decoded,
+	); err != nil {
+		return nil, errors.Wrapf(err, "error searching for song name=%s", name)
 	}
 
 	if decoded.Code != 0 {
-		return nil, errors.Errorf("got invalid response %s", body)
+		return nil, errors.Errorf("got invalid response %+v", decoded)
 	}
 
 	result := make([]Song, len(decoded.Data))
@@ -167,38 +171,13 @@ type nctSongResp struct {
 }
 
 func (c *connectorNhacCuaTui) GetStreamingUrl(id string) (string, error) {
-	u := url.URL{Scheme: "https", Host: "tvapi.nhaccuatui.com", Path: fmt.Sprintf("/v1/songs/%s", id)}
-
-	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
-	if err != nil {
-		return "", errors.Wrap(err, "error creating search request")
-	}
-	req.Header.Set("X-NCT-DESKTOP", "true")
-	req.Header.Set("X-NCT-DEVICEID", c.deviceId)
-	req.Header.Set("X-NCT-TOKEN", c.token)
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return "", errors.Wrap(err, "error sending search request")
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", errors.Wrap(err, "error reading response body")
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return "", errors.Errorf("got non-ok response statusCode=%d body=%s", resp.StatusCode, body)
-	}
-
 	var decoded nctSongResp
-	if err := json.Unmarshal(body, &decoded); err != nil {
-		return "", errors.Wrapf(err, "error decoding response body: %s", body)
+	if err := c.api(http.MethodGet, fmt.Sprintf("/v1/songs/%s", id), "", nil, &decoded); err != nil {
+		return "", errors.Wrapf(err, "error getting streamingUrl for id=%s", id)
 	}
 
 	if decoded.Code != 0 {
-		return "", errors.Errorf("got invalid response %s", body)
+		return "", errors.Errorf("got invalid response %+v", decoded)
 	}
 
 	for _, data := range decoded.Data.StreamURL {

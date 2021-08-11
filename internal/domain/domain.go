@@ -1,5 +1,7 @@
 package domain
 
+import "net/http"
+
 type Connector interface {
 	Name() string
 	Init() error
@@ -11,4 +13,8 @@ type Song struct {
 	Id      string
 	Name    string
 	Artists string
+}
+
+type httpClient interface {
+	Do(req *http.Request) (*http.Response, error)
 }
