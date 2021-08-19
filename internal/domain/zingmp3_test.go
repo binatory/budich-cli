@@ -1,13 +1,14 @@
 package domain
 
 import (
-	"errors"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -32,7 +33,12 @@ func Test_makeSig(t *testing.T) {
 			"type":      []string{"song"},
 			"version":   []string{"v1.0"},
 			"ignore_me": []string{"ok"},
-		}}, "dea008424c04795415f6b345436e5d0d3d9b701721cdcad2e93c76d3b1b9df4e2a2f6a76c0d427a7296cf15991d4cfa241e7c6d8f4b33032be53cdfc81dd300c"},
+		}}, "d28721493f78acc5fba49faaffe982e3eeaef2b2df3fe8424036295b1244d7e502ab2e3874e50a68c390be5be050fdcc27183b6832ecd9bbdcdc10a72ba43d0f"},
+		{"real world get streaming", args{"/api/v2/song/get/streaming", url.Values{
+			"ctime":   []string{"1633853055"},
+			"id":      []string{"ZU77WA8Z"},
+			"version": []string{"1.4.0"},
+		}}, "5086edb33643aa49a4ef257380d04b129809380d55b7f08ad3891be261ce58204d2adacf0ba0c3053173d88ad3d8a30ff7c768c00951bb4fc5fad83d8814b68d"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -50,6 +56,37 @@ func (mhc *mockHttpClient) Do(req *http.Request) (*http.Response, error) {
 	return args.Get(0).(*http.Response), args.Error(1)
 }
 
+func Test_connectorZingMp3_makeUrl(t *testing.T) {
+	type args struct {
+		path    string
+		queries url.Values
+	}
+	tests := []struct {
+		name  string
+		nowFn func() time.Time
+		args  args
+		want  url.URL
+	}{
+		{"real world get streaming", func() time.Time { return time.Unix(1633853055, 0) }, args{
+			path:    "/api/v2/song/get/streaming",
+			queries: url.Values{"id": []string{"ZU77WA8Z"}},
+		}, url.URL{
+			Scheme:   "https",
+			Host:     "zingmp3.vn",
+			Path:     "/api/v2/song/get/streaming",
+			RawQuery: "apiKey=88265e23d4284f25963e6eedac8fbfa3&ctime=1633853055&id=ZU77WA8Z&sig=5086edb33643aa49a4ef257380d04b129809380d55b7f08ad3891be261ce58204d2adacf0ba0c3053173d88ad3d8a30ff7c768c00951bb4fc5fad83d8814b68d&version=1.4.0",
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &connectorZingMp3{
+				nowFn: tt.nowFn,
+			}
+			require.EqualValues(t, tt.want, c.makeUrl(tt.args.path, tt.args.queries))
+		})
+	}
+}
+
 func Test_connectorZingMp3_getCookie(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -65,7 +102,7 @@ func Test_connectorZingMp3_getCookie(t *testing.T) {
 				"Set-Cookie": []string{zmp3Rqid + "=my_id;"},
 			},
 		}, nil, zmp3Rqid + "=my_id", false},
-		{"error sending request", &http.Response{}, errors.New("unexpected"), "", true},
+		{"error sending request", nil, errors.New("unexpected"), "", true},
 		{"non 200 response", &http.Response{
 			StatusCode: http.StatusTeapot,
 			Body:       emptyReader,

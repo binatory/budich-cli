@@ -19,9 +19,9 @@ import (
 )
 
 var (
-	zVersion    = "1.2.10"
-	zPrivateKey = []byte("882QcNXV4tUZbvAsjmFOHqNC1LpcBRKW")
-	zApiKey     = "kI44ARvPwaqL7v0KuDSM0rGORtdY1nnw"
+	zVersion    = "1.4.0"
+	zPrivateKey = []byte("2aa2d1c561e809b267f3638c4a307aab")
+	zApiKey     = "88265e23d4284f25963e6eedac8fbfa3"
 )
 
 type connectorZingMp3 struct {
@@ -65,14 +65,17 @@ func makeSig(path string, queries url.Values) string {
 	return hex.EncodeToString(p2.Sum(nil))
 }
 
-func makeUrl(path string, queries url.Values) url.URL {
-	// Add the signature into the queries
+func (c *connectorZingMp3) makeUrl(path string, queries url.Values) url.URL {
+	// Append required parameters
+	queries.Set("version", zVersion)
+	queries.Set("ctime", strconv.FormatInt(c.nowFn().Unix(), 10))
+
+	// Sign the queries
 	sig := makeSig(path, queries)
 	queries.Add("sig", sig)
 
-	// Append apiKey and version
+	// Append apiKey
 	queries.Set("apiKey", zApiKey)
-	queries.Set("version", zVersion)
 
 	return url.URL{
 		Scheme:   "https",
@@ -133,12 +136,11 @@ type searchResp struct {
 func (c *connectorZingMp3) Search(name string) ([]Song, error) {
 	// build the url containing query params and sig
 	q := make(url.Values)
-	q.Set("ctime", strconv.FormatInt(c.nowFn().Unix(), 10))
 	q.Set("count", strconv.FormatInt(18, 10))
 	q.Set("page", strconv.FormatInt(1, 10))
 	q.Set("type", "song")
 	q.Set("q", name)
-	u := makeUrl("/api/v2/search", q)
+	u := c.makeUrl("/api/v2/search", q)
 
 	// send request then decode response
 	var resp searchResp
@@ -173,9 +175,8 @@ type getStreamingResp struct {
 func (c *connectorZingMp3) GetStreamingUrl(id string) (string, error) {
 	// build the url containing query params and sig
 	q := make(url.Values)
-	q.Set("ctime", strconv.FormatInt(c.nowFn().Unix(), 10))
 	q.Set("id", id)
-	u := makeUrl("/api/v2/song/getStreaming", q)
+	u := c.makeUrl("/api/v2/song/get/streaming", q)
 
 	// send request then decode response
 	var resp getStreamingResp
