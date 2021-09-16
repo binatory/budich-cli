@@ -1,6 +1,9 @@
 package domain
 
-import "net/http"
+import (
+	"net/http"
+	"time"
+)
 
 type Connector interface {
 	Name() string
@@ -10,9 +13,11 @@ type Connector interface {
 }
 
 type Song struct {
-	Id      string
-	Name    string
-	Artists string
+	Id        string
+	Name      string
+	Artists   string
+	Duration  time.Duration
+	Connector string
 }
 
 type httpClient interface {

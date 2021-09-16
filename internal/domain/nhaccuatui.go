@@ -125,6 +125,7 @@ type nctSearchResp struct {
 		ArtistName string `json:"artistName"`
 		SongTitle  string `json:"songTitle"`
 		SongKey    string `json:"songKey"`
+		Duration   int64  `json:"duration"`
 	} `json:"data"`
 }
 
@@ -150,9 +151,11 @@ func (c *connectorNhacCuaTui) Search(name string) ([]Song, error) {
 	result := make([]Song, len(decoded.Data))
 	for idx, data := range decoded.Data {
 		result[idx] = Song{
-			Id:      data.SongKey,
-			Name:    data.SongTitle,
-			Artists: data.ArtistName,
+			Id:        data.SongKey,
+			Name:      data.SongTitle,
+			Artists:   data.ArtistName,
+			Duration:  time.Duration(data.Duration) * time.Second,
+			Connector: c.Name(),
 		}
 	}
 

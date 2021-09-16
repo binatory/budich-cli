@@ -26,5 +26,12 @@ func Test_connectorZingMp3_Search_realworld(t *testing.T) {
 	songs, err := c.Search("yeu voi vang")
 	require.NoError(t, err)
 	require.NotEmpty(t, songs)
-	require.EqualValues(t, Song{Id: "1075525434", Name: "Yêu Vội Vàng", Artists: "Lê Bảo Bình"}, songs[0])
+	expectedSong := Song{
+		Id:        "1075525434",
+		Name:      "Yêu Vội Vàng",
+		Artists:   "Lê Bảo Bình",
+		Duration:  317000000000,
+		Connector: "zmp3",
+	}
+	require.EqualValues(t, expectedSong, songs[0])
 }
