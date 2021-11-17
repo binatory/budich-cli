@@ -2,15 +2,14 @@ package domain
 
 import (
 	"bytes"
-	"crypto/hmac"
-	"crypto/sha256"
-	"crypto/sha512"
+	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -19,19 +18,49 @@ import (
 )
 
 var (
-	zVersion    = "1.4.0"
-	zPrivateKey = []byte("2aa2d1c561e809b267f3638c4a307aab")
-	zApiKey     = "88265e23d4284f25963e6eedac8fbfa3"
+	privateKey = "b476ff4e291877c1b83b052905d6f229ae290cc1"
+	publicKey1 = "ce46f2337ef14943fb51ca558229163e7444f93b"
+	publicKey2 = "3bf21d8608473090625e102f5bcdb026"
+
+	defaultParameters = map[string]string{
+		"appVersion": "2107015",
+		"os":         "android",
+		"osVersion":  "30",
+		"publicKey":  publicKey1,
+		"deviceId":   "1869ac5379584a14",
+		"zDeviceId":  "2002.SSZ-wu8DGTLrXQddcmj2d261jxEN6qwRCyx-iPOTIPamXlspbrP8c321_R4rCZG.1",
+	}
+	parameterKeysForSigning []string
 )
 
+func init() {
+	// default parameters
+	parameterKeysForSigning = append(parameterKeysForSigning, "appVersion", "os", "deviceId", "osVersion", "zDeviceId")
+	// search songs by keyword
+	parameterKeysForSigning = append(parameterKeysForSigning, "length", "cTime", "lastIndex", "keyword", "searchSessionId")
+	// get song details
+	parameterKeysForSigning = append(parameterKeysForSigning, "id")
+	// sort keys
+	sort.Strings(parameterKeysForSigning)
+}
+
 type connectorZingMp3 struct {
-	httpClient httpClient
-	cookie     string
-	nowFn      func() time.Time
+	httpClient      httpClient
+	searchSessionId string
+	nowFn           func() time.Time
 }
 
 func NewConnectorZingMp3(httpClient httpClient) *connectorZingMp3 {
-	return &connectorZingMp3{httpClient: httpClient, nowFn: time.Now}
+	buf := make([]byte, 16)
+	_, err := rand.Read(buf)
+	if err != nil {
+		panic(err)
+	}
+
+	return &connectorZingMp3{
+		httpClient:      httpClient,
+		searchSessionId: hex.EncodeToString(buf),
+		nowFn:           time.Now}
 }
 
 func (c *connectorZingMp3) Name() string {
@@ -39,47 +68,47 @@ func (c *connectorZingMp3) Name() string {
 }
 
 func (c *connectorZingMp3) Init() error {
-	return errors.Wrap(c.getCookie(), "error initializing ConnectorZingMp3")
+	return nil
 }
 
-func makeSig(path string, queries url.Values) string {
+func makeSig(queries url.Values) string {
 	// filter query params then concatenate for hashing
 	sb := strings.Builder{}
-	for _, key := range []string{"count", "ctime", "id", "page", "type", "version"} {
-		if val := queries.Get(key); val != "" {
+	for _, key := range parameterKeysForSigning {
+		val, found := defaultParameters[key]
+		if !found {
+			val = queries.Get(key)
+		}
+
+		if val != "" {
 			sb.WriteString(key)
 			sb.WriteRune('=')
 			sb.WriteString(val)
+			sb.WriteRune('&')
 		}
 	}
+	sb.WriteString(privateKey)
 
-	// Hash queries
-	p1 := sha256.New()
-	p1.Write([]byte(sb.String()))
-	p1Hex := hex.EncodeToString(p1.Sum(nil))
-
-	// Sign queries hash
-	p2 := hmac.New(sha512.New, zPrivateKey)
-	p2.Write([]byte(path))
-	p2.Write([]byte(p1Hex))
-	return hex.EncodeToString(p2.Sum(nil))
+	// Hash
+	digest := md5.New()
+	digest.Write([]byte(sb.String()))
+	return hex.EncodeToString(digest.Sum(nil))
 }
 
 func (c *connectorZingMp3) makeUrl(path string, queries url.Values) url.URL {
 	// Append required parameters
-	queries.Set("version", zVersion)
-	queries.Set("ctime", strconv.FormatInt(c.nowFn().Unix(), 10))
+	queries.Set("cTime", strconv.FormatInt(c.nowFn().Unix()*1000, 10))
 
 	// Sign the queries
-	sig := makeSig(path, queries)
+	sig := makeSig(queries)
 	queries.Add("sig", sig)
 
-	// Append apiKey
-	queries.Set("apiKey", zApiKey)
+	// Append publicKey
+	queries.Set("publicKey", publicKey2)
 
 	return url.URL{
 		Scheme:   "https",
-		Host:     "zingmp3.vn",
+		Host:     "api.zingmp3.app",
 		Path:     path,
 		RawQuery: queries.Encode(),
 	}
@@ -91,7 +120,9 @@ func (c *connectorZingMp3) api(u url.URL, respStruct interface{}) error {
 	if err != nil {
 		return errors.Wrapf(err, "error creating request %s", u.String())
 	}
-	req.Header.Add("Cookie", c.cookie)
+	for k, v := range defaultParameters {
+		req.Header[strings.ToLower(k)] = []string{v}
+	}
 
 	// send the request
 	resp, err := c.httpClient.Do(req)
@@ -124,23 +155,27 @@ type searchResp struct {
 	Msg  string `json:"msg"`
 	Data struct {
 		Items []struct {
-			EncodeId     string `json:"encodeId"`
-			Title        string `json:"title"`
-			ArtistsNames string `json:"artistsNames"`
+			Id      int64  `json:"id"`
+			Title   string `json:"title"`
+			Artists []struct {
+				Name string `json:"name"`
+			} `json:"artists"`
+			PlayStatus int `json:"playStatus"`
 		} `json:"items"`
-		Total int `json:"total"`
+		LastIndex int  `json:"lastIndex"`
+		IsMore    bool `json:"isMore"`
 	} `json:"data"`
-	Timestamp int64 `json:"timestamp"`
+	STime int64 `json:"sTime"`
 }
 
 func (c *connectorZingMp3) Search(name string) ([]Song, error) {
 	// build the url containing query params and sig
 	q := make(url.Values)
-	q.Set("count", strconv.FormatInt(18, 10))
-	q.Set("page", strconv.FormatInt(1, 10))
-	q.Set("type", "song")
-	q.Set("q", name)
-	u := c.makeUrl("/api/v2/search", q)
+	q.Set("length", strconv.FormatInt(20, 10))
+	q.Set("lastIndex", strconv.FormatInt(0, 10))
+	q.Set("keyword", name)
+	q.Set("searchSessionId", c.searchSessionId)
+	u := c.makeUrl("/v1/search/core/get/list-song", q)
 
 	// send request then decode response
 	var resp searchResp
@@ -156,27 +191,34 @@ func (c *connectorZingMp3) Search(name string) ([]Song, error) {
 	// build result
 	res := make([]Song, len(resp.Data.Items))
 	for idx, item := range resp.Data.Items {
+		artists := make([]string, len(item.Artists))
+		for idx, artist := range item.Artists {
+			artists[idx] = artist.Name
+		}
+
 		res[idx] = Song{
-			Id:      item.EncodeId,
+			Id:      strconv.FormatInt(item.Id, 10),
 			Name:    item.Title,
-			Artists: item.ArtistsNames,
+			Artists: strings.Join(artists, ", "),
 		}
 	}
 	return res, nil
 }
 
 type getStreamingResp struct {
-	Err       int               `json:"err"`
-	Msg       string            `json:"msg"`
-	Data      map[string]string `json:"data"`
-	Timestamp int64             `json:"timestamp"`
+	Err  int    `json:"err"`
+	Msg  string `json:"msg"`
+	Data struct {
+		Src map[string]string `json:"src"`
+	} `json:"data"`
+	STime int64 `json:"sTime"`
 }
 
 func (c *connectorZingMp3) GetStreamingUrl(id string) (string, error) {
 	// build the url containing query params and sig
 	q := make(url.Values)
 	q.Set("id", id)
-	u := c.makeUrl("/api/v2/song/get/streaming", q)
+	u := c.makeUrl("/v1/song/core/get/detail", q)
 
 	// send request then decode response
 	var resp getStreamingResp
@@ -185,40 +227,9 @@ func (c *connectorZingMp3) GetStreamingUrl(id string) (string, error) {
 	}
 
 	// validate response
-	if resp.Err != 0 || resp.Data == nil || resp.Data["128"] == "" {
+	if resp.Err != 0 || resp.Data.Src == nil || resp.Data.Src["128"] == "" {
 		return "", errors.Errorf("got unexpected response for url %s: %+v", u.String(), resp)
 	}
 
-	return resp.Data["128"], nil
-}
-
-const (
-	zmp3Url  = "https://zingmp3.vn"
-	zmp3Rqid = "zmp3_rqid"
-)
-
-func (c *connectorZingMp3) getCookie() error {
-	req, err := http.NewRequest(http.MethodGet, zmp3Url, nil)
-	if err != nil {
-		return errors.Wrap(err, "error creating request")
-	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return errors.Wrap(err, "error getting cookie")
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return errors.Errorf("got non-ok response status=%d", resp.StatusCode)
-	}
-
-	for _, cookie := range resp.Cookies() {
-		if cookie.Name == zmp3Rqid {
-			c.cookie = fmt.Sprintf("%s=%s", cookie.Name, cookie.Value)
-			return nil
-		}
-	}
-
-	return errors.New("required cookie not found")
+	return resp.Data.Src["128"], nil
 }
