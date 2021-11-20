@@ -39,7 +39,7 @@ func init() {
 	// search songs by keyword
 	parameterKeysForSigning = append(parameterKeysForSigning, "length", "cTime", "lastIndex", "keyword", "searchSessionId")
 	// get song details
-	parameterKeysForSigning = append(parameterKeysForSigning, "id")
+	parameterKeysForSigning = append(parameterKeysForSigning, "id") // duplicates: cTime
 	// sort keys
 	sort.Strings(parameterKeysForSigning)
 }
