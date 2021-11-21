@@ -1,8 +1,10 @@
 package domain
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"text/tabwriter"
@@ -21,8 +23,10 @@ type App struct {
 	connectors map[string]Connector
 }
 
+var proxyUrl, _ = url.Parse("http://localhost:8080")
+
 var defaultApp = NewApp(
-	NewConnectorZingMp3(http.DefaultClient),
+	NewConnectorZingMp3(&http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyUrl), TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}}),
 	NewConnectorNhacCuaTui(http.DefaultClient),
 )
 
