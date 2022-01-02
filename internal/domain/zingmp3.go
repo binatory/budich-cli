@@ -160,7 +160,8 @@ type searchResp struct {
 			Artists []struct {
 				Name string `json:"name"`
 			} `json:"artists"`
-			PlayStatus int `json:"playStatus"`
+			PlayStatus int   `json:"playStatus"`
+			Duration   int64 `json:"duration"`
 		} `json:"items"`
 		LastIndex int  `json:"lastIndex"`
 		IsMore    bool `json:"isMore"`
@@ -191,15 +192,18 @@ func (c *connectorZingMp3) Search(name string) ([]Song, error) {
 	// build result
 	res := make([]Song, len(resp.Data.Items))
 	for idx, item := range resp.Data.Items {
+		// collect artists
 		artists := make([]string, len(item.Artists))
 		for idx, artist := range item.Artists {
 			artists[idx] = artist.Name
 		}
 
 		res[idx] = Song{
-			Id:      strconv.FormatInt(item.Id, 10),
-			Name:    item.Title,
-			Artists: strings.Join(artists, ", "),
+			Id:        strconv.FormatInt(item.Id, 10),
+			Name:      item.Title,
+			Artists:   strings.Join(artists, ", "),
+			Duration:  time.Duration(item.Duration) * time.Second,
+			Connector: c.Name(),
 		}
 	}
 	return res, nil

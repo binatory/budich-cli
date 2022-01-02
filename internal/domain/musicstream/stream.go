@@ -81,7 +81,7 @@ func (ms *musicStream) Seek(offset int64, whence int) (int64, error) {
 	case io.SeekCurrent:
 		start = ms.pos + offset
 	default:
-		return 0, errors.New("only io.SeekStart is supported")
+		return 0, errors.New("only io.SeekStart and io.SeekCurrent are supported")
 	}
 
 	// if ms is already initialized and the new pos is still the same then return immediately
