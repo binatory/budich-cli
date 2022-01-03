@@ -8,7 +8,14 @@ import (
 	"github.com/pkg/errors"
 )
 
-type App struct {
+type App interface {
+	Init() error
+	ConnectorNames() []string
+	Search(cName, term string) ([]Song, error)
+	Play(song Song) (Player, error)
+}
+
+type app struct {
 	connectors map[string]Connector
 }
 
@@ -20,20 +27,20 @@ var (
 	)
 )
 
-func DefaultApp() *App {
+func DefaultApp() App {
 	return defaultApp
 }
 
-func NewApp(connectors ...Connector) *App {
+func NewApp(connectors ...Connector) App {
 	c := make(map[string]Connector, len(connectors))
 	for _, conn := range connectors {
 		c[conn.Name()] = conn
 	}
 
-	return &App{c}
+	return &app{c}
 }
 
-func (a *App) Init() error {
+func (a *app) Init() error {
 	for name, c := range a.connectors {
 		if err := c.Init(); err != nil {
 			return errors.Wrapf(err, "error initializing connector %s", name)
@@ -42,11 +49,11 @@ func (a *App) Init() error {
 	return nil
 }
 
-func (a *App) ConnectorNames() []string {
+func (a *app) ConnectorNames() []string {
 	return utils.GetMapKeys(a.connectors)
 }
 
-func (a *App) Search(cName, term string) ([]Song, error) {
+func (a *app) Search(cName, term string) ([]Song, error) {
 	c, foundConnector := a.connectors[cName]
 	if !foundConnector {
 		return nil, errors.Errorf("connector %s not recognized", cName)
@@ -55,7 +62,7 @@ func (a *App) Search(cName, term string) ([]Song, error) {
 	return c.Search(term)
 }
 
-func (a *App) Play(song Song) (Player, error) {
+func (a *app) Play(song Song) (Player, error) {
 	c, foundConnector := a.connectors[song.Connector]
 	if !foundConnector {
 		return nil, errors.Errorf("connector %s not recognized", song.Connector)
