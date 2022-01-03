@@ -55,7 +55,7 @@ func (a *App) Search(cName, term string) ([]Song, error) {
 	return c.Search(term)
 }
 
-func (a *App) Play2(song Song) (Player, error) {
+func (a *App) Play(song Song) (Player, error) {
 	c, foundConnector := a.connectors[song.Connector]
 	if !foundConnector {
 		return nil, errors.Errorf("connector %s not recognized", song.Connector)

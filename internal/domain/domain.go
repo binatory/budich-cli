@@ -20,6 +20,6 @@ type Song struct {
 	Connector string
 }
 
-type httpClient interface {
+type HttpClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }

@@ -21,13 +21,13 @@ var (
 )
 
 type connectorNhacCuaTui struct {
-	httpClient httpClient
+	httpClient HttpClient
 	nowFn      func() time.Time
 	deviceId   string
 	token      string
 }
 
-func NewConnectorNhacCuaTui(httpClient httpClient) *connectorNhacCuaTui {
+func NewConnectorNhacCuaTui(httpClient HttpClient) *connectorNhacCuaTui {
 	return &connectorNhacCuaTui{httpClient: httpClient, nowFn: time.Now}
 }
 
@@ -66,7 +66,7 @@ func (c *connectorNhacCuaTui) api(method, path, contentType string, reqBody io.R
 	// execute request
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return errors.Wrap(err, "error sending auth request")
+		return errors.Wrap(err, "error sending request")
 	}
 	defer resp.Body.Close()
 

@@ -9,8 +9,8 @@ var tuiCmd = &cobra.Command{
 	Use:   "tui",
 	Short: "Launch the text-based user interface",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		switchLogsOutput(true)
 		return tui.New(app).Start()
-
 	},
 }
 
