@@ -11,15 +11,16 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/rs/zerolog/pkgerrors"
 	"github.com/spf13/cobra"
 
 	"io.github.binatory/busich-cli/internal/domain"
 )
 
 var (
+	// root flags
+	verboseFlag bool
+
 	// search cmd flags
 	connectorFlag string
 
@@ -27,20 +28,9 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:           "busich",
-	Short:         "busich is a TUI and CLI music player for vietnamese. For more info: https://github.com/binatory/busich-cli",
-	SilenceUsage:  true,
-	SilenceErrors: true,
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		// f, err := os.OpenFile("/tmp/logg", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0744)
-		// if err != nil {
-		// 	panic(err)
-		// }
-		// defer f.Close()
-
-		app = domain.DefaultApp()
-		return app.Init()
-	},
+	Use:          "busich",
+	Short:        "busich is a TUI and CLI music player for vietnamese. For more info: https://github.com/binatory/busich-cli",
+	SilenceUsage: true,
 }
 
 var searchCmd = &cobra.Command{
@@ -77,7 +67,7 @@ var playCmd = &cobra.Command{
 			return errors.Errorf("invalid id %s", input)
 		}
 		cName, id := parts[0], parts[1]
-		player, err := app.Play2(domain.Song{
+		player, err := app.Play(domain.Song{
 			Id:        id,
 			Connector: cName,
 		})
@@ -101,31 +91,46 @@ var playCmd = &cobra.Command{
 
 func init() {
 	cobra.OnInitialize(func() {
-		zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-		zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
-		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, NoColor: true, TimeFormat: time.RFC3339})
+		// setup logger
+		initLogger(verboseFlag)
 
+		// setup profiler
 		if _, ok := os.LookupEnv("BD_PROFILING"); ok {
+			pprofAddr := "localhost:30888"
 			runtime.SetBlockProfileRate(1)
 			runtime.SetMutexProfileFraction(10)
+			log.Info().Msgf("Launch pprof server at http://%s", pprofAddr)
 
 			go func() {
-				if err := http.ListenAndServe("localhost:30888", nil); err != nil {
-					panic(err)
+				if err := http.ListenAndServe(pprofAddr, nil); err != nil {
+					log.Panic().Stack().Err(err).Send()
 				}
 			}()
 		}
+
+		// setup core
+		app = domain.DefaultApp()
+		if err := app.Init(); err != nil {
+			panic(err)
+		}
 	})
 
+	// setup searchCmd
 	searchCmd.Flags().StringVarP(&connectorFlag, "connector", "c", "", "connector name (required)")
 	searchCmd.MarkFlagRequired("connector")
 
+	// setup rootCmd
 	rootCmd.AddCommand(searchCmd)
 	rootCmd.AddCommand(playCmd)
+	rootCmd.PersistentFlags().BoolVarP(&verboseFlag, "verbose", "v", false, "enable logs verbosity")
 }
 
-func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		log.Fatal().Stack().Err(err).Send()
-	}
+func Execute() error {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Panic().Msgf("%+v", err)
+		}
+	}()
+
+	return rootCmd.Execute()
 }

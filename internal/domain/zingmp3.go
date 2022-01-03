@@ -45,12 +45,12 @@ func init() {
 }
 
 type connectorZingMp3 struct {
-	httpClient      httpClient
+	httpClient      HttpClient
 	searchSessionId string
 	nowFn           func() time.Time
 }
 
-func NewConnectorZingMp3(httpClient httpClient) *connectorZingMp3 {
+func NewConnectorZingMp3(httpClient HttpClient) *connectorZingMp3 {
 	buf := make([]byte, 16)
 	_, err := rand.Read(buf)
 	if err != nil {
