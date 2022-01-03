@@ -18,3 +18,18 @@ func GetMapKeys(m interface{}) []string {
 	sort.Strings(res)
 	return res
 }
+
+func WrapLongRunningFunc(f func() error, channels ...chan error) chan error {
+	ret := make(chan error)
+	channels = append(channels, ret)
+
+	go func() {
+		err := f()
+		for _, c := range channels {
+			c <- err
+			close(c)
+		}
+	}()
+
+	return ret
+}

@@ -7,12 +7,12 @@ import (
 )
 
 type controller struct {
-	app   *domain.App
+	app   domain.App
 	model *model.Model
 	view  *view
 }
 
-func New(app *domain.App) *controller {
+func New(app domain.App) *controller {
 	c := &controller{
 		app:   app,
 		model: model.New(app.ConnectorNames()),
