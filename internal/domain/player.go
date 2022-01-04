@@ -21,6 +21,7 @@ const (
 )
 
 type PlayerStatus struct {
+	Song  StreamableSong
 	State State
 	Err   error
 	Pos   time.Duration
@@ -35,12 +36,13 @@ type Player interface {
 }
 
 type player struct {
-	state        State
-	streamingUrl string
-	done         chan struct{}
-	streamer     beep.StreamSeekCloser
-	format       *beep.Format
-	ctrl         *beep.Ctrl
+	state    State
+	err      error
+	song     StreamableSong
+	done     chan struct{}
+	streamer beep.StreamSeekCloser
+	format   *beep.Format
+	ctrl     *beep.Ctrl
 }
 
 const systemSampleRate = beep.SampleRate(48000)
@@ -51,10 +53,11 @@ func init() {
 	}
 }
 
-func NewPlayer(streamingUrl string) Player {
+func NewPlayer(song StreamableSong) Player {
 	return &player{
 		StateNotInitialized,
-		streamingUrl,
+		nil,
+		song,
 		make(chan struct{}),
 		nil, nil, nil,
 	}
@@ -63,6 +66,7 @@ func NewPlayer(streamingUrl string) Player {
 func (p *player) Start() (err error) {
 	defer func() {
 		if err != nil {
+			p.err = err
 			p.state = StateError
 		}
 	}()
@@ -71,9 +75,9 @@ func (p *player) Start() (err error) {
 	p.state = StateLoading
 
 	// create a stream
-	ms, err := musicstream.New(p.streamingUrl, http.DefaultClient)
+	ms, err := musicstream.New(p.song.StreamingUrl, http.DefaultClient)
 	if err != nil {
-		err = errors.Wrapf(err, "error creating music stream url=%s", p.streamingUrl)
+		err = errors.Wrapf(err, "error creating music stream url=%s", p.song.StreamingUrl)
 		return
 	}
 	defer ms.Close()
@@ -81,7 +85,7 @@ func (p *player) Start() (err error) {
 	// start decoding
 	streamer, format, err := mp3.Decode(ms)
 	if err != nil {
-		err = errors.Wrapf(err, "error decoding song url=%s", p.streamingUrl)
+		err = errors.Wrapf(err, "error decoding song url=%s", p.song.StreamingUrl)
 		return
 	}
 	defer streamer.Close()
@@ -135,14 +139,13 @@ func (p *player) Stop() {
 }
 
 func (p *player) Report() PlayerStatus {
-	status := PlayerStatus{State: p.state}
+	status := PlayerStatus{Song: p.song, State: p.state, Err: p.err}
 	if p.format == nil || p.streamer == nil {
 		return status
 	}
 
 	speaker.Lock()
 	defer speaker.Unlock()
-	status.Err = nil
 	status.Pos = p.format.SampleRate.D(p.streamer.Position()).Round(time.Second)
 	status.Len = p.format.SampleRate.D(p.streamer.Len()).Round(time.Second)
 	return status

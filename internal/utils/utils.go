@@ -3,6 +3,7 @@ package utils
 import (
 	"reflect"
 	"sort"
+	"time"
 )
 
 func GetMapKeys(m interface{}) []string {
@@ -32,4 +33,8 @@ func WrapLongRunningFunc(f func() error, channels ...chan error) chan error {
 	}()
 
 	return ret
+}
+
+func SecondsToDuration(seconds int64) time.Duration {
+	return time.Duration(seconds) * time.Second
 }

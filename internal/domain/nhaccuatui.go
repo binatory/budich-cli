@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io.github.binatory/busich-cli/internal/utils"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -165,7 +166,11 @@ func (c *connectorNhacCuaTui) Search(name string) ([]Song, error) {
 type nctSongResp struct {
 	Code int `json:"code"`
 	Data struct {
-		StreamURL []struct {
+		SongKey    string `json:"songKey"`
+		SongTitle  string `json:"songTitle"`
+		ArtistName string `json:"artistName"`
+		Duration   int64  `json:"duration"`
+		StreamURL  []struct {
 			Type    string `json:"type"`
 			Stream  string `json:"stream"`
 			OnlyVIP bool   `json:"onlyVIP"`
@@ -173,21 +178,30 @@ type nctSongResp struct {
 	} `json:"data"`
 }
 
-func (c *connectorNhacCuaTui) GetStreamingUrl(id string) (string, error) {
+func (c *connectorNhacCuaTui) GetStreamingUrl(id string) (StreamableSong, error) {
 	var decoded nctSongResp
 	if err := c.api(http.MethodGet, fmt.Sprintf("/v1/songs/%s", id), "", nil, &decoded); err != nil {
-		return "", errors.Wrapf(err, "error getting streamingUrl for id=%s", id)
+		return StreamableSong{}, errors.Wrapf(err, "error getting streamingUrl for id=%s", id)
 	}
 
 	if decoded.Code != 0 {
-		return "", errors.Errorf("got invalid response %+v", decoded)
+		return StreamableSong{}, errors.Errorf("got invalid response %+v", decoded)
 	}
 
-	for _, data := range decoded.Data.StreamURL {
-		if !data.OnlyVIP {
-			return data.Stream, nil
+	for _, stream := range decoded.Data.StreamURL {
+		if !stream.OnlyVIP {
+			return StreamableSong{
+				Song: Song{
+					Id:        decoded.Data.SongKey,
+					Name:      decoded.Data.SongTitle,
+					Artists:   decoded.Data.ArtistName,
+					Duration:  utils.SecondsToDuration(decoded.Data.Duration),
+					Connector: c.Name(),
+				},
+				StreamingUrl: stream.Stream,
+			}, nil
 		}
 	}
 
-	return "", errors.New("no playable stream has been found")
+	return StreamableSong{}, errors.New("no playable stream has been found")
 }

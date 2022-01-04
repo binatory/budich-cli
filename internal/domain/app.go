@@ -12,7 +12,7 @@ type App interface {
 	Init() error
 	ConnectorNames() []string
 	Search(cName, term string) ([]Song, error)
-	Play(song Song) (Player, error)
+	Play(id, connectorName string) (Player, error)
 }
 
 type app struct {
@@ -62,16 +62,16 @@ func (a *app) Search(cName, term string) ([]Song, error) {
 	return c.Search(term)
 }
 
-func (a *app) Play(song Song) (Player, error) {
-	c, foundConnector := a.connectors[song.Connector]
+func (a *app) Play(id, connectorName string) (Player, error) {
+	c, foundConnector := a.connectors[connectorName]
 	if !foundConnector {
-		return nil, errors.Errorf("connector %s not recognized", song.Connector)
+		return nil, errors.Errorf("connector %s not recognized", connectorName)
 	}
 
-	streamingUrl, err := c.GetStreamingUrl(song.Id)
+	song, err := c.GetStreamingUrl(id)
 	if err != nil {
-		return nil, errors.Wrapf(err, "error playing song id=%s", song.Id)
+		return nil, errors.Wrapf(err, "error playing song id=%s", id)
 	}
 
-	return NewPlayer(streamingUrl), nil
+	return NewPlayer(song), nil
 }

@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
+	"io.github.binatory/busich-cli/internal/utils"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
@@ -150,18 +151,20 @@ func (c *connectorZingMp3) api(u url.URL, respStruct interface{}) error {
 	return nil
 }
 
+type artistResp struct {
+	Name string `json:"name"`
+}
+
 type searchResp struct {
 	Err  int    `json:"err"`
 	Msg  string `json:"msg"`
 	Data struct {
 		Items []struct {
-			Id      int64  `json:"id"`
-			Title   string `json:"title"`
-			Artists []struct {
-				Name string `json:"name"`
-			} `json:"artists"`
-			PlayStatus int   `json:"playStatus"`
-			Duration   int64 `json:"duration"`
+			Id         int64        `json:"id"`
+			Title      string       `json:"title"`
+			Artists    []artistResp `json:"artists"`
+			PlayStatus int          `json:"playStatus"`
+			Duration   int64        `json:"duration"`
 		} `json:"items"`
 		LastIndex int  `json:"lastIndex"`
 		IsMore    bool `json:"isMore"`
@@ -192,16 +195,10 @@ func (c *connectorZingMp3) Search(name string) ([]Song, error) {
 	// build result
 	res := make([]Song, len(resp.Data.Items))
 	for idx, item := range resp.Data.Items {
-		// collect artists
-		artists := make([]string, len(item.Artists))
-		for idx, artist := range item.Artists {
-			artists[idx] = artist.Name
-		}
-
 		res[idx] = Song{
 			Id:        strconv.FormatInt(item.Id, 10),
 			Name:      item.Title,
-			Artists:   strings.Join(artists, ", "),
+			Artists:   collectArtists(item.Artists),
 			Duration:  time.Duration(item.Duration) * time.Second,
 			Connector: c.Name(),
 		}
@@ -209,16 +206,28 @@ func (c *connectorZingMp3) Search(name string) ([]Song, error) {
 	return res, nil
 }
 
+func collectArtists(artists []artistResp) string {
+	ret := make([]string, len(artists))
+	for idx, artist := range artists {
+		ret[idx] = artist.Name
+	}
+	return strings.Join(ret, ", ")
+}
+
 type getStreamingResp struct {
 	Err  int    `json:"err"`
 	Msg  string `json:"msg"`
 	Data struct {
-		Src map[string]string `json:"src"`
+		Id       int64             `json:"id"`
+		Title    string            `json:"title"`
+		Artists  []artistResp      `json:"artists"`
+		Src      map[string]string `json:"src"`
+		Duration int64             `json:"duration"`
 	} `json:"data"`
 	STime int64 `json:"sTime"`
 }
 
-func (c *connectorZingMp3) GetStreamingUrl(id string) (string, error) {
+func (c *connectorZingMp3) GetStreamingUrl(id string) (StreamableSong, error) {
 	// build the url containing query params and sig
 	q := make(url.Values)
 	q.Set("id", id)
@@ -227,13 +236,22 @@ func (c *connectorZingMp3) GetStreamingUrl(id string) (string, error) {
 	// send request then decode response
 	var resp getStreamingResp
 	if err := c.api(u, &resp); err != nil {
-		return "", errors.WithStack(err)
+		return StreamableSong{}, errors.WithStack(err)
 	}
 
 	// validate response
 	if resp.Err != 0 || resp.Data.Src == nil || resp.Data.Src["128"] == "" {
-		return "", errors.Errorf("got unexpected response for url %s: %+v", u.String(), resp)
+		return StreamableSong{}, errors.Errorf("got unexpected response for url %s: %+v", u.String(), resp)
 	}
 
-	return resp.Data.Src["128"], nil
+	return StreamableSong{
+		Song: Song{
+			Id:        strconv.FormatInt(resp.Data.Id, 10),
+			Name:      resp.Data.Title,
+			Artists:   collectArtists(resp.Data.Artists),
+			Duration:  utils.SecondsToDuration(resp.Data.Duration),
+			Connector: c.Name(),
+		},
+		StreamingUrl: resp.Data.Src["128"],
+	}, nil
 }

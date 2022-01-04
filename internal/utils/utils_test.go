@@ -3,6 +3,7 @@ package utils
 import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
+	"math"
 	"testing"
 	"time"
 )
@@ -31,4 +32,26 @@ func TestWrapLongRunningFunc(t *testing.T) {
 	require.Equal(t, expected, got)
 	require.True(t, time.Now().Sub(start) >= duration)
 	require.Equal(t, expected, <-c1)
+}
+
+func TestSecondsToDuration(t *testing.T) {
+	type args struct {
+		seconds int64
+	}
+	tests := []struct {
+		name string
+		args args
+		want time.Duration
+	}{
+		{"happy case", args{10}, 10 * time.Second},
+		{"minDuration (overflowed)", args{math.MinInt64}, 0},
+		{"maxDuration (overflowed)", args{math.MaxInt64}, -1 * time.Second},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := SecondsToDuration(tt.args.seconds); got != tt.want {
+				t.Errorf("SecondsToDuration() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
