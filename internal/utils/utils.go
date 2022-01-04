@@ -20,21 +20,6 @@ func GetMapKeys(m interface{}) []string {
 	return res
 }
 
-func WrapLongRunningFunc(f func() error, channels ...chan error) chan error {
-	ret := make(chan error)
-	channels = append(channels, ret)
-
-	go func() {
-		err := f()
-		for _, c := range channels {
-			c <- err
-			close(c)
-		}
-	}()
-
-	return ret
-}
-
 func SecondsToDuration(seconds int64) time.Duration {
 	return time.Duration(seconds) * time.Second
 }

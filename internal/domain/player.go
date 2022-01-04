@@ -18,6 +18,7 @@ const (
 	StatePlaying              = "StatePlaying"
 	StatePaused               = "StatePaused"
 	StateError                = "StateError"
+	StateStopped              = "StateStopped"
 )
 
 type PlayerStatus struct {
@@ -130,12 +131,16 @@ func (p *player) Stop() {
 		p.ctrl.Streamer = nil // stop playing
 	}
 
+	// sync
 	select {
 	case <-p.done:
 		// already closed
 	default:
 		close(p.done)
 	}
+
+	// set state
+	p.state = StateStopped
 }
 
 func (p *player) Report() PlayerStatus {

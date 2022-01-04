@@ -5,7 +5,6 @@ import (
 	"github.com/pkg/errors"
 	"io"
 	"io.github.binatory/busich-cli/internal/domain"
-	"io.github.binatory/busich-cli/internal/utils"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -53,19 +52,31 @@ func (c *CLI) Play(input string) error {
 	song := player.Report().Song
 	fmt.Fprintf(c.out, "Playing %s (%s), duration %s\n", song.Name, song.Artists, song.Duration)
 
-	done := make(chan error)
 	go func() {
+		isLoading := false
+
 		for {
 			select {
 			case <-time.After(c.reportInterval):
 				report := player.Report()
-				fmt.Fprintf(c.out, "Current state (%s): %s/%s\n", report.State, report.Pos, report.Len)
-
-			case <-done:
-				return
+				switch report.State {
+				case domain.StateNotInitialized:
+					fallthrough
+				case domain.StateLoading:
+					if !isLoading {
+						isLoading = true
+						fmt.Fprintln(c.out, "Loading...")
+					}
+				case domain.StatePlaying:
+					fmt.Fprintf(c.out, "Playing: %s/%s\n", report.Pos, report.Len)
+				case domain.StatePaused:
+					fmt.Fprintf(c.out, "Paused: %s/%s\n", report.Pos, report.Len)
+				default:
+					return
+				}
 			}
 		}
 	}()
 
-	return <-utils.WrapLongRunningFunc(player.Start, done)
+	return player.Start()
 }

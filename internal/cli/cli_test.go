@@ -111,26 +111,26 @@ func TestCLI_Play(t *testing.T) {
 			Connector: "playme",
 		},
 	}
-	mp.On("Start").Return(errors.New("error start")).After(time.Second)
 	mp.On("Report").Return(domain.PlayerStatus{State: domain.StateNotInitialized, Err: nil, Pos: 0, Len: 0, Song: song}).Once()
+	mp.On("Report").Return(domain.PlayerStatus{State: domain.StateLoading, Err: nil, Pos: 0, Len: 0, Song: song}).Once()
 	mp.On("Report").Return(domain.PlayerStatus{State: domain.StateLoading, Err: nil, Pos: 0, Len: 0, Song: song}).Once()
 	mp.On("Report").Return(domain.PlayerStatus{State: domain.StatePlaying, Err: nil, Pos: 1, Len: 2, Song: song}).Once()
 	mp.On("Report").Return(domain.PlayerStatus{State: domain.StatePlaying, Err: nil, Pos: 3, Len: 4, Song: song}).Once()
-	mp.On("Report").Return(domain.PlayerStatus{State: domain.StateError, Err: errors.New("unexpected"), Pos: 5, Len: 6, Song: song}).Once()
+	mp.On("Report").Return(domain.PlayerStatus{State: domain.StateStopped, Err: nil, Pos: 5, Len: 6, Song: song}).Once()
+	mp.On("Start").Return(errors.New("error start")).After(time.Second)
 
 	ma := &mockApp{}
 	ma.On("Play", "playme", "toto").Return(mp, nil)
 
 	cli := New(&out, ma)
-	cli.reportInterval = 200 * time.Millisecond
+	cli.reportInterval = 150 * time.Millisecond
 	got := cli.Play("toto.playme")
 	require.EqualError(t, got, "error start")
 
 	require.Equal(t, `Playing My Song (Artist1, Artist2), duration 2m30s
-Current state (StateLoading): 0s/0s
-Current state (StatePlaying): 1ns/2ns
-Current state (StatePlaying): 3ns/4ns
-Current state (StateError): 5ns/6ns
+Loading...
+Playing: 1ns/2ns
+Playing: 3ns/4ns
 `, out.String())
 
 	mp.AssertExpectations(t)

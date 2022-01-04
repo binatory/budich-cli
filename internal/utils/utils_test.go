@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"math"
 	"testing"
@@ -16,22 +15,6 @@ func TestGetMapKeys(t *testing.T) {
 	}
 	keys := GetMapKeys(m)
 	require.EqualValues(t, []string{"key1", "key2", "zzkey"}, keys)
-}
-
-func TestWrapLongRunningFunc(t *testing.T) {
-	duration := 200 * time.Millisecond
-	expected := errors.New("expected")
-	f := func() error {
-		<-time.After(duration)
-		return expected
-	}
-
-	c1 := make(chan error, 1)
-	start := time.Now()
-	got := <-WrapLongRunningFunc(f, c1)
-	require.Equal(t, expected, got)
-	require.True(t, time.Now().Sub(start) >= duration)
-	require.Equal(t, expected, <-c1)
 }
 
 func TestSecondsToDuration(t *testing.T) {
