@@ -9,7 +9,7 @@ type Connector interface {
 	Name() string
 	Init() error
 	Search(name string) ([]Song, error)
-	GetStreamingUrl(id string) (string, error)
+	GetStreamingUrl(id string) (StreamableSong, error)
 }
 
 type Song struct {
@@ -18,6 +18,11 @@ type Song struct {
 	Artists   string
 	Duration  time.Duration
 	Connector string
+}
+
+type StreamableSong struct {
+	Song
+	StreamingUrl string
 }
 
 type HttpClient interface {

@@ -45,16 +45,15 @@ func (c *CLI) Play(input string) error {
 		return errors.Errorf("invalid id %s", input)
 	}
 	cName, id := parts[0], parts[1]
-	player, err := c.app.Play(domain.Song{
-		Id:        id,
-		Connector: cName,
-	})
+	player, err := c.app.Play(id, cName)
 	if err != nil {
 		return errors.Errorf("error getting player: %s", err)
 	}
 
-	done := make(chan error)
+	song := player.Report().Song
+	fmt.Fprintf(c.out, "Playing %s (%s), duration %s\n", song.Name, song.Artists, song.Duration)
 
+	done := make(chan error)
 	go func() {
 		for {
 			select {

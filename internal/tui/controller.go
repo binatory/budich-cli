@@ -68,7 +68,7 @@ func (c *controller) onSelectSong(song domain.Song) {
 	player.SongName = song.Name
 	player.ArtistsName = song.Artists
 
-	underlying, err := c.app.Play(song)
+	underlying, err := c.app.Play(song.Id, song.Connector)
 	if err != nil {
 		player.Status.State = domain.StateError
 		return

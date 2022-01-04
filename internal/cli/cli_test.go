@@ -27,8 +27,8 @@ func (m *mockApp) Search(cName, term string) ([]domain.Song, error) {
 	return called.Get(0).([]domain.Song), called.Error(1)
 }
 
-func (m *mockApp) Play(song domain.Song) (domain.Player, error) {
-	called := m.Called(song)
+func (m *mockApp) Play(id, connectorName string) (domain.Player, error) {
+	called := m.Called(id, connectorName)
 	return called.Get(0).(domain.Player), called.Error(1)
 }
 
@@ -102,24 +102,32 @@ func TestCLI_Play(t *testing.T) {
 	var out bytes.Buffer
 
 	mp := &mockPlayer{}
+	song := domain.StreamableSong{
+		Song: domain.Song{
+			Id:        "toto",
+			Name:      "My Song",
+			Artists:   "Artist1, Artist2",
+			Duration:  2*time.Minute + 30*time.Second,
+			Connector: "playme",
+		},
+	}
 	mp.On("Start").Return(errors.New("error start")).After(time.Second)
-	mp.On("Report").Return(domain.PlayerStatus{State: domain.StateNotInitialized, Err: nil, Pos: 0, Len: 0}).Once()
-	mp.On("Report").Return(domain.PlayerStatus{State: domain.StatePlaying, Err: nil, Pos: 1, Len: 2}).Once()
-	mp.On("Report").Return(domain.PlayerStatus{State: domain.StatePlaying, Err: nil, Pos: 3, Len: 4}).Once()
-	mp.On("Report").Return(domain.PlayerStatus{State: domain.StateError, Err: errors.New("unexpected"), Pos: 5, Len: 6}).Once()
+	mp.On("Report").Return(domain.PlayerStatus{State: domain.StateNotInitialized, Err: nil, Pos: 0, Len: 0, Song: song}).Once()
+	mp.On("Report").Return(domain.PlayerStatus{State: domain.StateLoading, Err: nil, Pos: 0, Len: 0, Song: song}).Once()
+	mp.On("Report").Return(domain.PlayerStatus{State: domain.StatePlaying, Err: nil, Pos: 1, Len: 2, Song: song}).Once()
+	mp.On("Report").Return(domain.PlayerStatus{State: domain.StatePlaying, Err: nil, Pos: 3, Len: 4, Song: song}).Once()
+	mp.On("Report").Return(domain.PlayerStatus{State: domain.StateError, Err: errors.New("unexpected"), Pos: 5, Len: 6, Song: song}).Once()
 
 	ma := &mockApp{}
-	ma.On("Play", domain.Song{
-		Id:        "playme",
-		Connector: "toto",
-	}).Return(mp, nil)
+	ma.On("Play", "playme", "toto").Return(mp, nil)
 
 	cli := New(&out, ma)
 	cli.reportInterval = 200 * time.Millisecond
 	got := cli.Play("toto.playme")
 	require.EqualError(t, got, "error start")
 
-	require.Equal(t, `Current state (StateNotInitialized): 0s/0s
+	require.Equal(t, `Playing My Song (Artist1, Artist2), duration 2m30s
+Current state (StateLoading): 0s/0s
 Current state (StatePlaying): 1ns/2ns
 Current state (StatePlaying): 3ns/4ns
 Current state (StateError): 5ns/6ns
@@ -137,7 +145,7 @@ func TestCLI_Play_on_error(t *testing.T) {
 	}{
 		{"invalid input", "invalid", nil},
 		{"player.Play error", "valid.input", func(ma *mockApp) {
-			ma.On("Play", mock.Anything).Return(&mockPlayer{}, errors.New("unexpected"))
+			ma.On("Play", mock.Anything, mock.Anything).Return(&mockPlayer{}, errors.New("unexpected"))
 		}},
 	}
 	for _, tt := range tests {
