@@ -13,15 +13,18 @@ type App interface {
 	ConnectorNames() []string
 	Search(cName, term string) ([]Song, error)
 	Play(id, connectorName string) (Player, error)
+	CheckForUpdate() (UpdateStatus, error)
 }
 
 type app struct {
-	connectors map[string]Connector
+	connectors     map[string]Connector
+	updateNotifier UpdateNotifier
 }
 
 var (
 	defaultHttpClient = &http.Client{Timeout: 30 * time.Second}
 	defaultApp        = NewApp(
+		NewUpdateNotifier(defaultHttpClient, true), // TODO use releasesOnly from user preferences
 		NewConnectorZingMp3(defaultHttpClient),
 		NewConnectorNhacCuaTui(defaultHttpClient),
 	)
@@ -31,13 +34,13 @@ func DefaultApp() App {
 	return defaultApp
 }
 
-func NewApp(connectors ...Connector) App {
+func NewApp(updateNotifier UpdateNotifier, connectors ...Connector) App {
 	c := make(map[string]Connector, len(connectors))
 	for _, conn := range connectors {
 		c[conn.Name()] = conn
 	}
 
-	return &app{c}
+	return &app{connectors: c, updateNotifier: updateNotifier}
 }
 
 func (a *app) Init() error {
@@ -74,4 +77,8 @@ func (a *app) Play(id, connectorName string) (Player, error) {
 	}
 
 	return NewPlayer(song), nil
+}
+
+func (a *app) CheckForUpdate() (UpdateStatus, error) {
+	return a.updateNotifier.Check()
 }

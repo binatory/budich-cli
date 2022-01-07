@@ -32,6 +32,11 @@ func (m *mockApp) Play(id, connectorName string) (domain.Player, error) {
 	return called.Get(0).(domain.Player), called.Error(1)
 }
 
+func (m *mockApp) CheckForUpdate() (domain.UpdateStatus, error) {
+	called := m.Called()
+	return called.Get(0).(domain.UpdateStatus), called.Error(1)
+}
+
 type mockPlayer struct {
 	mock.Mock
 }

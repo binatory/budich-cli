@@ -1,9 +1,11 @@
 package cmd
 
 import (
+	"fmt"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"io.github.binatory/busich-cli/internal/cli"
+	"io.github.binatory/busich-cli/metadata"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -25,6 +27,7 @@ var rootCmd = &cobra.Command{
 	Short:         "busich is a TUI and CLI music player for vietnamese. For more info: https://github.com/binatory/busich-cli",
 	SilenceUsage:  true,
 	SilenceErrors: true,
+	Version:       metadata.Version.String(),
 }
 
 func init() {
@@ -48,6 +51,18 @@ func init() {
 
 		// setup core
 		app = domain.DefaultApp()
+
+		// check for updates
+		updateStatus, err := app.CheckForUpdate()
+		if err != nil {
+			log.Error().Msgf("Unable to check for updates: %s", err)
+		} else if !updateStatus.IsUpToDate {
+			fmt.Fprintf(os.Stderr, "New release has been found, current version %s, latest version %s (%s)",
+				metadata.VersionRaw, updateStatus.LatestVersion, updateStatus.LatestVersionUrl)
+			fmt.Fprintln(os.Stderr)
+		}
+
+		// init core
 		if err := app.Init(); err != nil {
 			panic(err)
 		}

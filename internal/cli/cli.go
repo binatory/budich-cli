@@ -29,10 +29,13 @@ func (c *CLI) Search(connector, term string) error {
 	tw := tabwriter.NewWriter(c.out, 1, 1, 5, ' ', 0)
 	defer tw.Flush()
 
-	fmt.Fprint(tw, "Id\tBài hát\tCa sĩ\n")
-	fmt.Fprint(tw, "----------\t----------\t----------\n")
+	fmt.Fprint(tw, "Id\tBài hát\tCa sĩ")
+	fmt.Fprintln(tw)
+	fmt.Fprint(tw, "----------\t----------\t----------")
+	fmt.Fprintln(tw)
 	for _, s := range songs {
-		fmt.Fprintf(tw, "%s.%s\t%s\t%s\n", connector, s.Id, s.Name, s.Artists)
+		fmt.Fprintf(tw, "%s.%s\t%s\t%s", connector, s.Id, s.Name, s.Artists)
+		fmt.Fprintln(tw)
 	}
 
 	return nil
@@ -50,7 +53,8 @@ func (c *CLI) Play(input string) error {
 	}
 
 	song := player.Report().Song
-	fmt.Fprintf(c.out, "Playing %s (%s), duration %s\n", song.Name, song.Artists, song.Duration)
+	fmt.Fprintf(c.out, "Playing %s (%s), duration %s", song.Name, song.Artists, song.Duration)
+	fmt.Fprintln(c.out)
 
 	go func() {
 		isLoading := false
@@ -68,9 +72,11 @@ func (c *CLI) Play(input string) error {
 						fmt.Fprintln(c.out, "Loading...")
 					}
 				case domain.StatePlaying:
-					fmt.Fprintf(c.out, "Playing: %s/%s\n", report.Pos, report.Len)
+					fmt.Fprintf(c.out, "Playing: %s/%s", report.Pos, report.Len)
+					fmt.Fprintln(c.out)
 				case domain.StatePaused:
-					fmt.Fprintf(c.out, "Paused: %s/%s\n", report.Pos, report.Len)
+					fmt.Fprintf(c.out, "Paused: %s/%s", report.Pos, report.Len)
+					fmt.Fprintln(c.out)
 				default:
 					return
 				}
