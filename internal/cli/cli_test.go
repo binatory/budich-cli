@@ -5,7 +5,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"io.github.binatory/busich-cli/internal/domain"
+	"io.github.binatory/budich-cli/internal/domain"
 	"testing"
 	"time"
 )

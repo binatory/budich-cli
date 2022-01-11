@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
-	"io.github.binatory/busich-cli/internal/cli"
-	"io.github.binatory/busich-cli/metadata"
+	"io.github.binatory/budich-cli/internal/cli"
+	"io.github.binatory/budich-cli/metadata"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"runtime"
 
-	"io.github.binatory/busich-cli/internal/domain"
+	"io.github.binatory/budich-cli/internal/domain"
 )
 
 var (
@@ -23,8 +23,8 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:           "busich",
-	Short:         "busich is a TUI and CLI music player for vietnamese. For more info: https://github.com/binatory/busich-cli",
+	Use:           "budich",
+	Short:         "budich is a TUI and CLI music player for vietnamese. For more info: https://github.com/binatory/budich-cli",
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	Version:       metadata.Version.String(),

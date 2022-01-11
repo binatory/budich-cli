@@ -1,7 +1,7 @@
 package model
 
 import (
-	"io.github.binatory/busich-cli/internal/domain"
+	"io.github.binatory/budich-cli/internal/domain"
 	"sync"
 )
 

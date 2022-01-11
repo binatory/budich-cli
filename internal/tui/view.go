@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
-	"io.github.binatory/busich-cli/internal/domain"
-	"io.github.binatory/busich-cli/internal/tui/model"
+	"io.github.binatory/budich-cli/internal/domain"
+	"io.github.binatory/budich-cli/internal/tui/model"
 )
 
 type view struct {

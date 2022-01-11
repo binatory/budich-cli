@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io.github.binatory/busich-cli/internal/utils"
+	"io.github.binatory/budich-cli/internal/utils"
 	"io/ioutil"
 	"net/http"
 	"net/url"

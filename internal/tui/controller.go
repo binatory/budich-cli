@@ -1,8 +1,8 @@
 package tui
 
 import (
-	"io.github.binatory/busich-cli/internal/domain"
-	"io.github.binatory/busich-cli/internal/tui/model"
+	"io.github.binatory/budich-cli/internal/domain"
+	"io.github.binatory/budich-cli/internal/tui/model"
 	"time"
 )
 

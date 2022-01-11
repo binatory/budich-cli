@@ -1,4 +1,4 @@
-module io.github.binatory/busich-cli
+module io.github.binatory/budich-cli
 
 go 1.16
 

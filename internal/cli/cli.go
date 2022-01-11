@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"io"
-	"io.github.binatory/busich-cli/internal/domain"
+	"io.github.binatory/budich-cli/internal/domain"
 	"strings"
 	"text/tabwriter"
 	"time"

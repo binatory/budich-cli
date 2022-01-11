@@ -5,7 +5,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
-	"io.github.binatory/busich-cli/internal/utils"
+	"io.github.binatory/budich-cli/internal/utils"
 	"io/ioutil"
 	"math/rand"
 	"net/http"

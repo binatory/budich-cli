@@ -5,7 +5,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"io"
-	"io.github.binatory/busich-cli/metadata"
+	"io.github.binatory/budich-cli/metadata"
 	"net/http"
 	"reflect"
 	"strings"

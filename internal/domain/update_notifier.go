@@ -4,7 +4,7 @@ import (
 	"encoding/xml"
 	"github.com/blang/semver/v4"
 	"github.com/pkg/errors"
-	"io.github.binatory/busich-cli/metadata"
+	"io.github.binatory/budich-cli/metadata"
 	"io/ioutil"
 	"net/http"
 	"strings"

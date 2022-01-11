@@ -1,7 +1,7 @@
 package main
 
 import (
-	"io.github.binatory/busich-cli/cmd"
+	"io.github.binatory/budich-cli/cmd"
 	"os"
 )
 

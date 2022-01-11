@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
-	"io.github.binatory/busich-cli/internal/tui"
+	"io.github.binatory/budich-cli/internal/tui"
 )
 
 var tuiCmd = &cobra.Command{

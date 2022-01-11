@@ -1,7 +1,7 @@
 package domain
 
 import (
-	"io.github.binatory/busich-cli/internal/utils"
+	"io.github.binatory/budich-cli/internal/utils"
 	"net/http"
 	"time"
 

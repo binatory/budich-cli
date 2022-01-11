@@ -5,7 +5,7 @@ import (
 	"github.com/faiface/beep/mp3"
 	"github.com/faiface/beep/speaker"
 	"github.com/pkg/errors"
-	"io.github.binatory/busich-cli/internal/domain/musicstream"
+	"io.github.binatory/budich-cli/internal/domain/musicstream"
 	"net/http"
 	"time"
 )
