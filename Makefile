@@ -1,16 +1,16 @@
+ifdef GIT_COMMIT_HASH
+	LDFLAGS += -X io.github.binatory/budich-cli/metadata.versionBuild=$(GIT_COMMIT_HASH)
+endif
+
 GOOS             ?= linux
 GOARCH           ?= amd64
 CGO_ENABLED      ?= 1
 OUTPUT_DIR	     ?= ./target
 OUTPUT_NAME      ?= budich-cli
 OUTPUT_EXT       ?=
-OUTPUT_VERSION   ?= $(shell go test -v -count=1 -test.run='^TestShowCurrentVersion$$' ./metadata | grep METADATA_CURRENT_VERSION | cut -d' ' -f2)
+OUTPUT_VERSION   ?= $(shell go test -ldflags "$(LDFLAGS)" -v -count=1 -test.run='^TestShowCurrentVersion$$' ./metadata | grep METADATA_CURRENT_VERSION | cut -d' ' -f2)
 OUTPUT_FULL_PATH  = $(OUTPUT_DIR)/bin/$(OUTPUT_NAME)_$(OUTPUT_VERSION)_$(GOOS)_$(GOARCH)$(OUTPUT_EXT)
 GPG_KEY          ?= 0x59BFB401A134CAE1
-
-ifdef GIT_COMMIT_HASH
-	LDFLAGS += -X io.github.binatory/budich-cli/metadata.versionBuild=$(GIT_COMMIT_HASH)
-endif
 
 .PHONY: clean
 
@@ -32,8 +32,8 @@ $(OUTPUT_FULL_PATH): $(OUTPUT_DIR)
 
 $(OUTPUT_FULL_PATH).asc: GPG := gpg --batch --yes --pinentry-mode loopback
 $(OUTPUT_FULL_PATH).asc: $(OUTPUT_FULL_PATH)
-	echo "$$PK" | $(GPG) --import
-	echo "$$PP" | $(GPG) --passphrase-fd 0 -u "$(GPG_KEY)" --detach-sign --armor -o "$@" $<
+	echo "$$GPG_PRIVATE_KEY" | $(GPG) --import
+	echo "$$GPG_PASSPHRASE" | $(GPG) --passphrase-fd 0 -u "$(GPG_KEY)" --detach-sign --armor -o "$@" $<
 
 build-linux-amd64: install_alsa_lib
 	$(MAKE) build GOOS=linux GOARCH=amd64 CGO_ENABLED=1
