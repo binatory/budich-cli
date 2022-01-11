@@ -41,6 +41,9 @@ build-linux-amd64: install_alsa_lib
 build-macos-amd64:
 	$(MAKE) build GOOS=darwin GOARCH=amd64 CGO_ENABLED=1
 
+build-macos-arm64:
+	$(MAKE) build GOOS=darwin GOARCH=arm64 CGO_ENABLED=1
+
 build-windows-amd64:
 	$(MAKE) build GOOS=windows GOARCH=amd64 CGO_ENABLED=0 OUTPUT_EXT=.exe
 
