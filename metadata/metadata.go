@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	versionMain       = "0.0.1"
+	versionMain       = "1.1.0"
 	versionPreRelease = "snapshot"
 	versionBuild      = ""
 	Version           = makeVersion(versionMain, versionPreRelease, versionBuild)
