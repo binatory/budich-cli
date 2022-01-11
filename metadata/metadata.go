@@ -6,8 +6,8 @@ import (
 )
 
 var (
-	versionMain       = "0.0.1"
-	versionPreRelease = "snapshot"
+	versionMain       = "1.0.0"
+	versionPreRelease = ""
 	versionBuild      = ""
 	Version           = makeVersion(versionMain, versionPreRelease, versionBuild)
 	VersionRaw        = Version.String()
