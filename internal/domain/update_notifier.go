@@ -72,7 +72,7 @@ func (u *updateNotifier) Check() (UpdateStatus, error) {
 	}
 
 	contentType := resp.Header.Get("content-type")
-	if resp.StatusCode != http.StatusOK || contentType != "application/atom+xml" {
+	if resp.StatusCode != http.StatusOK || strings.SplitN(contentType, ";", 2)[0] != "application/atom+xml" {
 		return UpdateStatus{}, errors.Errorf("got unexpected response status=%d, contentType=%s, body=%s",
 			resp.StatusCode, resp.Header.Get("content-type"), body)
 	}

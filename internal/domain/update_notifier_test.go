@@ -221,7 +221,7 @@ func Test_updateNotifier_Check(t *testing.T) {
 					req.Header.Get("accept") == "application/atom+xml"
 			})).Return(&http.Response{
 				StatusCode: 200,
-				Header:     http.Header{"Content-Type": []string{"application/atom+xml"}},
+				Header:     http.Header{"Content-Type": []string{"application/atom+xml; charset=utf-8"}},
 				Body:       io.NopCloser(strings.NewReader(responseRaw)),
 			}, nil)
 		}, UpdateStatus{IsUpToDate: false, LatestVersion: "2.0.2", LatestVersionUrl: "https://github.com/hajimehoshi/oto/releases/tag/v2.0.2"}, false},
