@@ -11,6 +11,7 @@ OUTPUT_EXT       ?=
 OUTPUT_VERSION   ?= $(shell go test -ldflags "$(LDFLAGS)" -v -count=1 -test.run='^TestShowCurrentVersion$$' ./metadata | grep METADATA_CURRENT_VERSION | cut -d' ' -f2)
 OUTPUT_FULL_PATH  = $(OUTPUT_DIR)/bin/$(OUTPUT_NAME)_$(OUTPUT_VERSION)_$(GOOS)_$(GOARCH)$(OUTPUT_EXT)
 GPG_KEY          ?= 0x59BFB401A134CAE1
+GNUPGHOME        ?= ./.gnupg
 
 .PHONY: clean
 
