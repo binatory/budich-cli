@@ -7,7 +7,7 @@ import (
 
 var (
 	versionMain       = "1.0.1"
-	versionPreRelease = "snapshot"
+	versionPreRelease = ""
 	versionBuild      = ""
 	Version           = makeVersion(versionMain, versionPreRelease, versionBuild)
 	VersionRaw        = Version.String()
